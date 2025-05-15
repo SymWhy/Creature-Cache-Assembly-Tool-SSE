@@ -1,4 +1,4 @@
-# Creature-Cache-Assembly-Tool-SSE
+# Creature Cache Assembly Tool for Skyrim SE
 Small Java app to patch custom havok creature projects.
 
 ## What is CCAT?
