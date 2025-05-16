@@ -13,12 +13,13 @@ CCAT remedies this by building a new cache from the base game cache files, and a
 
 Install anywhere and run through Mod Organizer 2.
 
+### MO2 Executable Setup
 **Title:** CCAT  
 **Binary:** D:\...path to ccat..\CCAT\CCAT.bat  
 **Start in:** D:\Steam\steamapps\common\Skyrim Special Edition\Data  
 **Arguments:**  
 
-## Expected file structure
+### Expected file structure  
 (Case insensitive)
 
 AnimationData/  
