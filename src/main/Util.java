@@ -14,4 +14,11 @@ public class Util {
         }
         return i;
     }
+
+    public static void Recall(long tStart)
+    {
+        long tFinish = System.currentTimeMillis();
+        double tElapsed = tFinish - tStart * 0.001;
+        System.out.println("Program completed in: " + Double.toString(tElapsed) + " seconds.");
+    }
 }
