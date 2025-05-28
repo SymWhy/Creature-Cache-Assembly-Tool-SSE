@@ -191,17 +191,15 @@ public class Extract {
                 }
             }
         } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
+            System.err.println("Could not find animationdatasinglefile.txt!");
             e.printStackTrace();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
+            System.err.println("Could not write to file!");
             e.printStackTrace();
         }
     }
 
     public static void ExtractProjectSets(Boolean vanilla, Boolean verbose) {
-
-        String cachedLine = null;
         
         try (
             BufferedReader vanillaReader = new BufferedReader(new FileReader(Main.AnimSetCache));
@@ -209,190 +207,151 @@ public class Extract {
         )
         {
             int numVanilla = Integer.parseInt(vanillaReader.readLine());
-            int numCached = Integer.parseInt(cacheReader.readLine());
+            System.out.println("Expecting " + numVanilla + " vanilla projects.");
+            int numTotal = Integer.parseInt(cacheReader.readLine());
 
-            int numProjects = numCached - numVanilla;
+            int numProjects = numTotal - numVanilla;
+            System.out.println("Expecting " + numProjects + " new projects.");
 
-            for (String line; (line = cacheReader.readLine().toLowerCase()) != null;)
+            if (numProjects == 0 && !vanilla)
+            {
+                System.out.println("No new projects expected!");
+                return;
+            }
+
+            List<String> listOfProjects = new ArrayList<>();
+
+            // read list of vanilla projects
+            for (int i = 0; i < numVanilla; i++) {
+                vanillaReader.readLine();
+                String cachedLine = cacheReader.readLine();
+
+                if (vanilla)
                 {
-                    if (line != vanillaReader.readLine().toLowerCase())
-                    {
-                        cachedLine = line;
-                        System.out.println("Stopping at: " + cachedLine);
+                    System.out.println("Found: " + cachedLine);
+                    listOfProjects.add(cachedLine);
+                }
+            }
+            
+            //read list of new projects
+            for (int i = 0; i < numProjects; i++)
+            {
+                String cachedLine = cacheReader.readLine();
+                System.out.println("Found: " + cachedLine);
+                listOfProjects.add(cachedLine);
+            }
+
+            if (!vanilla) {
+                // read through the vanilla file all the way to the end
+                // also read through the cache file
+                for (String line; (line = vanillaReader.readLine()) != null;) {
+                    cacheReader.readLine();
+                }
+                // the next line should be the file count for our first new project!
+            }
+
+            //set up expected file count and first expected file name
+            String numFiles = cacheReader.readLine();
+            String fileName = cacheReader.readLine();
+
+            //for each project {
+            for (String project : listOfProjects)  {
+                
+                //FIRST we want to setup our working outFolder
+                String folderPath = Main.AnimSetDataOutput.toString() + "/" + project.split("\\\\")[0];
+                File outFolder = new File(folderPath);
+                if (!outFolder.exists()) {
+                    outFolder.mkdir();
+                }
+
+                System.out.println("Printing to: " + outFolder.getPath());
+
+                //# files to expect should be numFiles
+                //first file name should be fileName
+                List<String> expectedFiles = new ArrayList<>();
+                expectedFiles.add(fileName);
+                System.out.println("Expecting: " + expectedFiles.get(0));
+
+                for (int i = 0; i < Integer.parseInt(numFiles) - 1; i++) // subtract 1 because we already added the first one
+                {
+                    //if there is only one file, its already been added so break
+                    if (Integer.parseInt(numFiles) - 1 == 0) break;
+
+                    expectedFiles.add(cacheReader.readLine());
+                    System.out.println("Expecting: " + expectedFiles.get(i + 1));
+                }
+                //now we have a list of file names, and count of files to expect
+                //we also know the next file is going to be a "V3", so we'll toss this one.
+                cacheReader.readLine();
+
+                //for each file in expectedFiles {
+                for (String f : expectedFiles) {
+                    Boolean toNext = false;
+
+                    String path = outFolder + "/" + f;
+
+                    // set up current working file
+                    File outFile = new File(path);
+                    if (!outFile.exists()) {
+                        outFile.createNewFile();
+                    }
+
+                    // set up a list that contains all the lines we want to write
+                    List<String> linesInFile = new ArrayList<>();
+
+                    // add that missing "V3" back in.
+                    linesInFile.add("V3");
+
+                    String prevLine = null;
+                    // for each line we see
+                    for (String line; (line = cacheReader.readLine()) != null;) {
+                        // first check that it does not contain "V3" (at the header of every cache file)
+                        // this means we are starting to write another file
+                        if (line.equals("V3")) {
+                            break;
+                        }
+
+                        // then check if the line does not contain ".txt"
+                        if (line.contains(".txt")) {
+                            numFiles = prevLine;
+                            fileName = line;
+
+                            // remove the last line added
+                            linesInFile.remove(linesInFile.size() - 1);
+
+                            // break out of both if statements
+                            toNext = true;
+                            break;
+                        }
+
+                        // add current line to list of lines (List<String> linesInFile)
+                        linesInFile.add(line);
+
+                        prevLine = line;
+                    }
+
+                    // set up a new buffered writer for this file
+                    try (BufferedWriter writer = new BufferedWriter(new FileWriter(outFile, false))) {
+                        // write everything to the active file
+                        for (String line : linesInFile) {
+                            writer.write(line);
+                            writer.newLine();
+                        }
+                    }
+                    
+                    // if there's no more files for this project, break.
+                    if (toNext) {
                         break;
                     }
                 }
-
-            List<String> listProjects = new ArrayList<>();
-
-            //add in the last read line
-            listProjects.add(cachedLine);
-
-            //get the remaining projects in the cached file
-            //this should also catch up the cached file to the vanilla file
-            for (int i = 0; i < numProjects - 1; i++)
-            {
-                listProjects.add(cacheReader.readLine().toLowerCase());
-            }
-
-            for (String line; (line = cacheReader.readLine().toLowerCase()) != null;)
-            {
-                if (line != vanillaReader.readLine().toLowerCase())
-                {
-                    cachedLine = line;
-                    System.out.println("Stopping at: " + line);
-                    break;
-                }
-            }
-
-        } catch (FileNotFoundException e) {
+            }           
+        }
+         catch (FileNotFoundException e) {
             System.err.println("Cache file missing!");
             e.printStackTrace();
         } catch (IOException e) {
             System.err.println("Cannot read file!");
             e.printStackTrace();
-        }
-    }
-
-    
-
-    public static void ExtractProjectSetsOLD(Boolean vanilla, Boolean verbose) {
-
-        // TIME FOR PART II
-
-        int numSetProjects;
-        List<String> projectNames = new ArrayList<>();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader("meshes/animationsetdatasinglefile.txt"))) {
-
-            // first line says number of projects to expect
-            numSetProjects = Integer.parseInt(reader.readLine());
-            System.out.println("Expecting " + numSetProjects + " project sets.");
-
-            // next lines are the names of the project files to print
-            for (int i = 0; i < numSetProjects; i++) {
-                String project = reader.readLine();
-                // System.out.println("Found: " + project);
-                projectNames.add(project);
-            }
-
-            String lastLastLine = reader.readLine(); // cache the number of projects beforehand
-            String lastLine = reader.readLine(); // cache the first txt file
-
-            System.out.println("Expected files for " + projectNames.get(0) + ": " + lastLastLine);
-            System.out.println("First file in list: " + lastLine);
-
-            //for each project
-            for (String projectName : projectNames) {
-
-                // check how many txts to expect
-                int expectedFiles = Integer.parseInt(lastLastLine);
-
-                // cache expected txt names
-                List<String> exFileNames = new ArrayList<>();
-                exFileNames.add(lastLine);
-
-                if (expectedFiles == 0) {
-                    System.err.println("Weird number of files, is your source file corrupt?");
-                }
-
-                if (expectedFiles > 1) {
-                    for (int i = 0; i < expectedFiles; i++) {
-                        exFileNames.add(reader.readLine());
-                    }
-                }
-
-                for (int i = 0; i < expectedFiles; i++) {
-
-                    List<String> lines = new ArrayList<>();
-
-                    // expectedFiles is usually 1 if there are more than one expected files
-                    // and we arent on the first iteration, i must be greater than 0
-                    if (expectedFiles > 1 && i > 0) {
-                        lines.add("V3"); // add missing V3
-                    }
-
-                    for (String line; (line = reader.readLine()) != null;) {
-
-                        if (line.toLowerCase().contains("v3") && !lastLine.toLowerCase().contains(".txt")) {
-
-                            lastLastLine = lastLine;
-                            lastLine = line;
-
-                            break;
-                        }
-
-                        if (line.toLowerCase().contains(".txt")) {
-                            lines.remove(lines.size() - 1);
-
-                            lastLastLine = lastLine;
-                            lastLine = line;
-
-                            break;
-                        }
-
-                        lines.add(line);
-
-                        lastLastLine = lastLine;
-                        lastLine = line;
-                    }
-
-                    // System.out.println("Testing project: " + projectName.toLowerCase());
-
-                    if (!vanilla && Main.directoryAnimSets.contains(projectName.toLowerCase())) 
-                        System.out.println("Skipping vanilla file: " + projectName.toLowerCase());
-
-                    // only print if we want vanilla files or if the directory does not contain the project
-                    if (vanilla || !Main.directoryAnimSets.contains(projectName.toLowerCase())) {
-
-                        // make sure we can write to the outfolder
-                        File outFolder = new File(
-                                Main.AnimSetDataOutput.toString() + "/" + projectName.split("\\\\")[0]);
-                        if (!outFolder.exists()) {
-                            outFolder.mkdir();
-                        }
-
-                        System.out.println("Found project data: " + outFolder.getName());
-
-                        // make expected file
-                        String path = outFolder.getPath() + "/" + exFileNames.get(i);
-                        if (verbose) System.out.println("Extracting: " + path);
-
-                        File outFile = new File(path);
-                        if (!outFile.exists()) {
-                            try {
-                                outFile.createNewFile();
-                                if (verbose)
-                                    System.out.println("Creating new cache file.");
-                            } catch (IOException e) {
-                                System.err.println("Could not write file to directory!");
-                                e.printStackTrace();
-                                return;
-                            }
-                        }
-
-                        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outFile, false))) {
-
-                            for (String line : lines) {
-                                writer.append(line);
-                                writer.newLine();
-                            }
-                        }
-                    }
-
-                    // reset in case we repeat
-                    lines.clear();
-                }
-            }
-        } catch (FileNotFoundException e1) {
-            System.err.println("Could not find animationsetdatasinglefile.txt!");
-            e1.printStackTrace();
-            return;
-
-        } catch (IOException e1) {
-            System.err.println("Could not write to file!");
-            e1.printStackTrace();
-            return;
         }
     }
 }
